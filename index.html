@@ -261,23 +261,68 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
     showFlash('GO!','td');
   }
 
-  function spawnDefender(){
-    // pick a lane-ish x, avoid spawning directly on player every time
+  function laneX(nearPlayer){
+    // pick a lane-ish x; nearPlayer aims at the carrier's lane for pressure
     var x = 40 + Math.random()*(W-80);
-    if(Math.random() < 0.45){
-      // sometimes aim near player's lane to create pressure
+    if(nearPlayer){
       x = player.x + (Math.random()*220-110);
       x = Math.max(36, Math.min(W-36, x));
     }
-    var speed = 150 + Math.random()*70 + (drive-1)*18;
-    defenders.push({
-      x:x, y:-40, r:20,
+    return x;
+  }
+
+  function spawnDefender(x, y, kind){
+    // Defenders get markedly faster and home in much harder as drives
+    // climb; on drive 1 both numbers are the original friendly values.
+    var speed = 150 + Math.random()*70 + (drive-1)*26;
+    var d = {
+      x:x, y:y, r:20,
       vy: speed,
       vx: 0,
-      homing: 22 + Math.random()*28 + (drive-1)*4,
+      homing: 22 + Math.random()*30 + (drive-1)*9,
       wobble: Math.random()*Math.PI*2,
-      num: Math.floor(Math.random()*89)+10
-    });
+      num: Math.floor(Math.random()*89)+10,
+      kind: kind || 'front',
+      age: 0,
+      pace: 0
+    };
+    if(d.kind==='side'){
+      // Sideline chaser: enters at the carrier's level running at nearly
+      // his cruising pace, so he stays in the play and angles in instead
+      // of being left behind by a straight sprint.
+      var cruisePx = 8.2 * (1 + (drive-1)*0.18) * 22;
+      d.pace = cruisePx * (0.94 + Math.random()*0.08) + 30;
+      d.homing *= 1.35;
+      d.vx = x < W/2 ? 5 : -5;
+    }
+    defenders.push(d);
+  }
+
+  function spawnWave(){
+    if(defenders.length > 42) return;
+    var sprinting = inputSpeedFactor() > 1;
+    // Wave size grows with the drive: singles early, then pairs, staggered
+    // rows, and full pressure packages on high drives. Sprinting into the
+    // teeth of the defense draws extra attention from drive 5 on.
+    var count = 1;
+    if(drive >= 8) count += Math.floor((drive-4)/4);
+    if(Math.random() < Math.min(0.8, 0.18 + drive*0.045)) count += 1;
+    if(sprinting && drive >= 5 && Math.random() < 0.4) count += 1;
+    // Converging sideline defenders join from drive 4 on and get more
+    // common the deeper the game goes (never more than 3 at once).
+    var sides = 0;
+    for(var i=0;i<defenders.length;i++) if(defenders[i].kind==='side') sides++;
+    var sideChance = drive < 4 ? 0 : Math.min(0.5, 0.16 + (drive-4)*0.03);
+    for(var j=0;j<count;j++){
+      if(sides < 3 && Math.random() < sideChance){
+        var fromLeft = Math.random() < 0.5;
+        spawnDefender(fromLeft ? -26 : W+26, player.y - 90 - Math.random()*90, 'side');
+        sides++;
+      } else {
+        // staggered rows ahead of the play instead of one flat line
+        spawnDefender(laneX(Math.random() < 0.45), -40 - j*64 - Math.random()*30, 'front');
+      }
+    }
   }
 
   function tackle(){
@@ -490,23 +535,41 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
       // goal line and into the end zone drawn above (see goalLineY).
       if(yardsToGo<=TD_YARDS){ updateHUD(); touchdownScored(); }
 
-      // spawns
+      // spawns: waves arrive faster and faster as drives climb — the
+      // interval keeps shrinking long after the old 0.42s floor kicked in
       spawnTimer-=dt;
-      var interval = Math.max(0.42, 1.05 - (drive-1)*0.11 - (inputSpeedFactor()>1?0.12:0));
-      if(spawnTimer<=0){ spawnDefender(); if(Math.random()<0.22+drive*0.04) spawnDefender(); spawnTimer = interval * (0.7+Math.random()*0.6); }
+      var interval = Math.max(0.34, 1.05 - (drive-1)*0.085 - (inputSpeedFactor()>1?0.12:0));
+      if(spawnTimer<=0){ spawnWave(); spawnTimer = interval * (0.7+Math.random()*0.6); }
 
       // defenders move: they come down field + scroll with field + home slightly
       var scrollPx = yardsPerSec * dt * 22;
       for(var i=defenders.length-1;i>=0;i--){
         var d=defenders[i];
         d.wobble += dt*3;
-        var dx = player.x - d.x;
-        d.vx += Math.max(-1, Math.min(1, dx/80)) * d.homing * dt;
-        d.vx *= 0.96;
-        d.x += d.vx + Math.sin(d.wobble)*18*dt;
-        d.y += (d.vy * (0.55 + inputSpeedFactor()*0.45) + scrollPx*1.15) * dt;
-        d.x = Math.max(24, Math.min(W-24, d.x));
-        if(d.y > H+50){ defenders.splice(i,1); continue; }
+        if(d.kind==='side'){
+          // Sideline chaser: holds the carrier's level (his screen drift is
+          // just his pace against the field scroll, so sprinting sheds him
+          // only slowly — and barely at all on high drives) while he angles
+          // in from the edge with a capped, committed pursuit speed.
+          d.age += dt;
+          var sdx = player.x - d.x;
+          d.vx += Math.max(-1, Math.min(1, sdx/70)) * d.homing * dt;
+          d.vx *= 0.94;
+          var vCap = 6 + drive*0.3;
+          d.vx = Math.max(-vCap, Math.min(vCap, d.vx));
+          d.x += d.vx + Math.sin(d.wobble)*10*dt;
+          d.y += scrollPx - d.pace * dt;
+          d.x = Math.max(24, Math.min(W-24, d.x));
+          if(d.y > H+50 || d.y < -90 || d.age > 6){ defenders.splice(i,1); continue; }
+        } else {
+          var dx = player.x - d.x;
+          d.vx += Math.max(-1, Math.min(1, dx/80)) * d.homing * dt;
+          d.vx *= 0.96;
+          d.x += d.vx + Math.sin(d.wobble)*18*dt;
+          d.y += (d.vy * (0.55 + inputSpeedFactor()*0.45) + scrollPx*1.15) * dt;
+          d.x = Math.max(24, Math.min(W-24, d.x));
+          if(d.y > H+50){ defenders.splice(i,1); continue; }
+        }
         // collision
         var distX = d.x-player.x, distY=d.y-player.y;
         var dist = Math.sqrt(distX*distX+distY*distY);
