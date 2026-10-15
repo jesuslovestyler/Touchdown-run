@@ -284,8 +284,16 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
       num: Math.floor(Math.random()*89)+10,
       kind: kind || 'front',
       age: 0,
-      pace: 0
+      pace: 0,
+      lane: 0
     };
+    if(d.kind!=='side'){
+      // This defender's patch of turf: an offset from the carrier's lane,
+      // anywhere across the width of the field. A wave of them forms a
+      // wall spread sideline to sideline instead of stacking up in one
+      // single-file column in front of the runner.
+      d.lane = (Math.random()*2-1) * 175;
+    }
     if(d.kind==='side'){
       // Sideline chaser: enters at the carrier's level running at nearly
       // his cruising pace, so he stays in the play and angles in instead
@@ -293,7 +301,8 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
       var cruisePx = 8.2 * (1 + (drive-1)*0.18) * 22;
       d.pace = cruisePx * (0.94 + Math.random()*0.08) + 30;
       d.homing *= 1.35;
-      d.vx = x < W/2 ? 5 : -5;
+      // committed first step across the field, not a drift
+      d.vx = x < W/2 ? 6.5 : -6.5;
     }
     defenders.push(d);
   }
@@ -308,19 +317,31 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
     if(drive >= 8) count += Math.floor((drive-4)/4);
     if(Math.random() < Math.min(0.8, 0.18 + drive*0.045)) count += 1;
     if(sprinting && drive >= 5 && Math.random() < 0.4) count += 1;
-    // Converging sideline defenders join from drive 4 on and get more
-    // common the deeper the game goes (never more than 3 at once).
+    // Sideline defenders are in the game from the first drive: they pour
+    // in off both edges at scattered depths and times and angle across
+    // the field at the carrier. They get more common — and more numerous
+    // at once — the deeper the game goes.
     var sides = 0;
     for(var i=0;i<defenders.length;i++) if(defenders[i].kind==='side') sides++;
-    var sideChance = drive < 4 ? 0 : Math.min(0.5, 0.16 + (drive-4)*0.03);
+    var sideCap = drive >= 8 ? 4 : 3;
+    var sideChance = Math.min(0.55, 0.30 + (drive-1)*0.025);
     for(var j=0;j<count;j++){
-      if(sides < 3 && Math.random() < sideChance){
+      if(sides < sideCap && Math.random() < sideChance){
         var fromLeft = Math.random() < 0.5;
-        spawnDefender(fromLeft ? -26 : W+26, player.y - 90 - Math.random()*90, 'side');
+        // scattered depths, so they never arrive as one timed group:
+        // some well ahead of the carrier cutting off his lane, some
+        // around his level, a few dropping in from the top corners
+        var depthRoll = Math.random();
+        var sy;
+        if(depthRoll < 0.45) sy = player.y - 50 - Math.random()*170;
+        else if(depthRoll < 0.8) sy = player.y + 30 - Math.random()*90;
+        else sy = -30 - Math.random()*110;
+        spawnDefender(fromLeft ? -26 : W+26, sy, 'side');
         sides++;
       } else {
-        // staggered rows ahead of the play instead of one flat line
-        spawnDefender(laneX(Math.random() < 0.45), -40 - j*64 - Math.random()*30, 'front');
+        // staggered rows ahead of the play, spread across the full
+        // width of the field instead of stacked in the carrier's lane
+        spawnDefender(laneX(Math.random() < 0.22), -40 - j*64 - Math.random()*30, 'front');
       }
     }
   }
@@ -555,14 +576,21 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
           var sdx = player.x - d.x;
           d.vx += Math.max(-1, Math.min(1, sdx/70)) * d.homing * dt;
           d.vx *= 0.94;
-          var vCap = 6 + drive*0.3;
+          // cuts across the field fast enough to reach the far sprint
+          // lane and shut it, not just trail along behind the play
+          var vCap = 7.5 + drive*0.35;
           d.vx = Math.max(-vCap, Math.min(vCap, d.vx));
           d.x += d.vx + Math.sin(d.wobble)*10*dt;
-          d.y += scrollPx - d.pace * dt;
+          // converges on a point just ahead of the carrier, so he steps
+          // into the running lane instead of chasing from behind
+          d.y += scrollPx - d.pace * dt + ((player.y - 55) - d.y) * 0.9 * dt;
           d.x = Math.max(24, Math.min(W-24, d.x));
-          if(d.y > H+50 || d.y < -90 || d.age > 6){ defenders.splice(i,1); continue; }
+          if(d.y > H+50 || d.y < -200 || d.age > 6){ defenders.splice(i,1); continue; }
         } else {
-          var dx = player.x - d.x;
+          // shades toward his own lane, offset from the carrier's, so the
+          // wave stays spread across the field as it closes in
+          var tx = Math.max(24, Math.min(W-24, player.x + d.lane));
+          var dx = tx - d.x;
           d.vx += Math.max(-1, Math.min(1, dx/80)) * d.homing * dt;
           d.vx *= 0.96;
           d.x += d.vx + Math.sin(d.wobble)*18*dt;
