@@ -272,37 +272,32 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
   }
 
   function spawnDefender(x, y, kind){
-    // Defenders get markedly faster and home in much harder as drives
-    // climb; on drive 1 both numbers are the original friendly values.
-    var speed = 150 + Math.random()*70 + (drive-1)*26;
+    // Every defender is a pursuer: he gets a top speed and a steering
+    // (turn) rate, both growing with the drive, and from the moment he
+    // appears he steers straight at the ball carrier — no lane to hold,
+    // no patch of turf to guard. On drive 1 the numbers stay friendly;
+    // what changes is that he actually closes on the runner.
     var d = {
       x:x, y:y, r:20,
-      vy: speed,
-      vx: 0,
-      homing: 22 + Math.random()*30 + (drive-1)*9,
-      wobble: Math.random()*Math.PI*2,
+      vx: 0, vy: 0,
+      spd: 218 + Math.random()*58 + (drive-1)*20,
+      turn: 2.05 + Math.random()*0.85 + (drive-1)*0.12,
       num: Math.floor(Math.random()*89)+10,
       kind: kind || 'front',
       age: 0,
-      pace: 0,
-      lane: 0
+      beaten: false
     };
-    if(d.kind!=='side'){
-      // This defender's patch of turf: an offset from the carrier's lane,
-      // anywhere across the width of the field. A wave of them forms a
-      // wall spread sideline to sideline instead of stacking up in one
-      // single-file column in front of the runner.
-      d.lane = (Math.random()*2-1) * 175;
-    }
     if(d.kind==='side'){
-      // Sideline chaser: enters at the carrier's level running at nearly
-      // his cruising pace, so he stays in the play and angles in instead
-      // of being left behind by a straight sprint.
-      var cruisePx = 8.2 * (1 + (drive-1)*0.18) * 22;
-      d.pace = cruisePx * (0.94 + Math.random()*0.08) + 30;
-      d.homing *= 1.35;
-      // committed first step across the field, not a drift
-      d.vx = x < W/2 ? 6.5 : -6.5;
+      // Sideline chaser: quicker across the field than a front defender,
+      // with a committed first step inward at full pace — he cuts across
+      // to the carrier instead of trailing along the edge.
+      d.spd = 282 + Math.random()*58 + (drive-1)*20;
+      d.turn *= 1.25;
+      d.vx = (x < W/2 ? 1 : -1) * d.spd * 0.85;
+      d.vy = d.spd * 0.2;
+    } else {
+      // already charging downhill at the carrier when he appears
+      d.vy = d.spd * 0.72;
     }
     defenders.push(d);
   }
@@ -562,45 +557,64 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
       var interval = Math.max(0.34, 1.05 - (drive-1)*0.085 - (inputSpeedFactor()>1?0.12:0));
       if(spawnTimer<=0){ spawnWave(); spawnTimer = interval * (0.7+Math.random()*0.6); }
 
-      // defenders move: they come down field + scroll with field + home slightly
+      // Defenders move: pure pursuit. Every defender steers at the ball
+      // carrier's current position, every frame — a man upfield charges
+      // downhill at him with real closing speed, a man at his level or
+      // behind converges the same way. Nobody holds a lane, drifts with
+      // the scroll, or hovers at a fixed offset: if the carrier runs
+      // straight, the distance closes until contact. Steering turns the
+      // defender's velocity toward the carrier at his turn rate, so he
+      // runs a true pursuit curve and his momentum carries him past a
+      // sharp juke — juking is how you beat him, not out-waiting him.
       var scrollPx = yardsPerSec * dt * 22;
+      for(var i=0;i<defenders.length;i++){
+        var d=defenders[i];
+        d.age += dt;
+        var pdx = player.x - d.x, pdy = player.y - d.y;
+        var pdist = Math.sqrt(pdx*pdx + pdy*pdy) || 1;
+        var spd = d.beaten ? d.spd * 0.34 : d.spd;
+        var blend = 1 - Math.exp(-d.turn * dt);
+        d.vx += (pdx/pdist * spd - d.vx) * blend;
+        d.vy += (pdy/pdist * spd - d.vy) * blend;
+        d.x += d.vx * dt;
+        d.y += d.vy * dt;
+        if(d.beaten){
+          // Beaten by the carrier: still chasing, but a full step slower
+          // and losing ground to the run, so the field scroll carries
+          // him down and off the play instead of letting him hover
+          // behind it forever.
+          d.y += scrollPx;
+        } else if(d.y > player.y + 50){
+          // ran past the carrier's level without making the tackle
+          d.beaten = true;
+        }
+        d.x = Math.max(24, Math.min(W-24, d.x));
+      }
+      // Separation: defenders converging on one point would pile onto
+      // the same spot, so any two who get body-to-body shove apart —
+      // the swarm stays spread and nobody stacks or sticks to a teammate.
+      for(var a=0;a<defenders.length;a++){
+        for(var b=a+1;b<defenders.length;b++){
+          var A=defenders[a], B=defenders[b];
+          var sx=B.x-A.x, sy=B.y-A.y;
+          var sd=Math.sqrt(sx*sx+sy*sy);
+          var minD=A.r+B.r-6;
+          if(sd>0.01 && sd<minD){
+            var push=(minD-sd)/2, ux=sx/sd, uy=sy/sd;
+            A.x-=ux*push; A.y-=uy*push;
+            B.x+=ux*push; B.y+=uy*push;
+          } else if(sd<=0.01){
+            A.x-=minD/2; B.x+=minD/2;
+          }
+        }
+      }
+      // Collisions, plus cleanup for anyone beaten out of the play or
+      // chasing so long the play has moved on without him.
       for(var i=defenders.length-1;i>=0;i--){
         var d=defenders[i];
-        d.wobble += dt*3;
-        if(d.kind==='side'){
-          // Sideline chaser: holds the carrier's level (his screen drift is
-          // just his pace against the field scroll, so sprinting sheds him
-          // only slowly — and barely at all on high drives) while he angles
-          // in from the edge with a capped, committed pursuit speed.
-          d.age += dt;
-          var sdx = player.x - d.x;
-          d.vx += Math.max(-1, Math.min(1, sdx/70)) * d.homing * dt;
-          d.vx *= 0.94;
-          // cuts across the field fast enough to reach the far sprint
-          // lane and shut it, not just trail along behind the play
-          var vCap = 7.5 + drive*0.35;
-          d.vx = Math.max(-vCap, Math.min(vCap, d.vx));
-          d.x += d.vx + Math.sin(d.wobble)*10*dt;
-          // converges on a point just ahead of the carrier, so he steps
-          // into the running lane instead of chasing from behind
-          d.y += scrollPx - d.pace * dt + ((player.y - 55) - d.y) * 0.9 * dt;
-          d.x = Math.max(24, Math.min(W-24, d.x));
-          if(d.y > H+50 || d.y < -200 || d.age > 6){ defenders.splice(i,1); continue; }
-        } else {
-          // shades toward his own lane, offset from the carrier's, so the
-          // wave stays spread across the field as it closes in
-          var tx = Math.max(24, Math.min(W-24, player.x + d.lane));
-          var dx = tx - d.x;
-          d.vx += Math.max(-1, Math.min(1, dx/80)) * d.homing * dt;
-          d.vx *= 0.96;
-          d.x += d.vx + Math.sin(d.wobble)*18*dt;
-          d.y += (d.vy * (0.55 + inputSpeedFactor()*0.45) + scrollPx*1.15) * dt;
-          d.x = Math.max(24, Math.min(W-24, d.x));
-          if(d.y > H+50){ defenders.splice(i,1); continue; }
-        }
-        // collision
-        var distX = d.x-player.x, distY=d.y-player.y;
-        var dist = Math.sqrt(distX*distX+distY*distY);
+        if(d.age>12 || d.y>H+60 || d.y<-340){ defenders.splice(i,1); continue; }
+        var distX=d.x-player.x, distY=d.y-player.y;
+        var dist=Math.sqrt(distX*distX+distY*distY);
         if(dist < d.r + player.r - 6 && player.invuln<=0){
           tackle(); break;
         }
