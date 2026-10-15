@@ -115,7 +115,7 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
       <div class="card">
         <div class="kicker">Kickoff • 75 yards to glory</div>
         <h2>Break a big one</h2>
-        <p>Steer left &amp; right to dodge defenders. Push up to sprint, pull back to slow down and let blocks develop. Get tackled 4 times and the drive — and the game — is over.</p>
+        <p>Steer left &amp; right to dodge defenders. Push up to sprint, pull back to slow down and let blocks develop. Get tackled 4 times and the drive — and the game — is over. Score 20 touchdowns and you win it all.</p>
         <button class="big-btn" id="startBtn">🏈 &nbsp;Start running</button>
         <p style="font-size:13px;margin-top:12px;opacity:.85">Keyboard: ← → ↑ ↓ or WASD &nbsp;•&nbsp; Phone: swipe or hold the buttons below</p>
       </div>
@@ -127,6 +127,15 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
         <h2 id="overTitle">Game over</h2>
         <p id="overText">You scored 0 touchdowns.</p>
         <button class="big-btn" id="againBtn">↻ &nbsp;Run it back</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="winOverlay" hidden>
+      <div class="card">
+        <div class="kicker">Final whistle • Game complete</div>
+        <h2>🏆 You win!</h2>
+        <p id="winText">You scored 20 touchdowns.</p>
+        <button class="big-btn" id="winAgainBtn">↻ &nbsp;Play again</button>
       </div>
     </div>
   </div>
@@ -150,7 +159,8 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
       <li><b>↑ / W</b> — sprint. You cover yards faster, but defenders close faster too.</li>
       <li><b>↓ / S</b> — slow down. Useful in traffic to let a hole open up.</li>
       <li><b>Tackled?</b> You lose a down and get pushed back 10 yards. Four tackles ends the game.</li>
-      <li><b>Touchdown?</b> +1 score, downs reset, and the next drive is faster with more defenders.</li>
+      <li><b>Touchdown?</b> +1 score, downs reset, and the next drive is faster with more defenders. Reach <b>20 touchdowns</b> and the game ends in victory.</li>
+      <li><b>No grace period</b> — after a tackle or a score you're live again right away and can be tackled on the very next play.</li>
     </ul>
   </div>
 </div>
@@ -175,8 +185,10 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
   var overOverlay = document.getElementById('overOverlay');
   var overText = document.getElementById('overText');
   var overTitle = document.getElementById('overTitle');
+  var winOverlay = document.getElementById('winOverlay');
+  var winText = document.getElementById('winText');
 
-  var state = 'ready'; // ready, playing, paused, tackled, touchdown, over
+  var state = 'ready'; // ready, playing, paused, tackled, touchdown, over, won
   var keys = {left:false,right:false,up:false,down:false};
   var touch = {left:false,right:false,up:false,down:false};
 
@@ -189,7 +201,7 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
   var shake = 0;
   var confetti = [];
 
-  var player = { x: W/2, y: H-130, vx: 0, r: 22, invuln: 0, lean: 0, step: 0 };
+  var player = { x: W/2, y: H-130, vx: 0, r: 22, lean: 0, step: 0 };
   var defenders = [];
 
   // Field geometry: the field scrolls 22px per yard covered (same rate as
@@ -247,7 +259,7 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
     if(full){ tds=0; drive=1; down=1; }
     yardsToGo = 75; startYards = 75;
     defenders = [];
-    player.x = W/2; player.vx = 0; player.invuln = 1.2;
+    player.x = W/2; player.vx = 0;
     spawnTimer = 0.7;
     scrollY = 0;
     updateHUD();
@@ -258,6 +270,7 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
     state = 'playing';
     startOverlay.hidden = true;
     overOverlay.hidden = true;
+    winOverlay.hidden = true;
     showFlash('GO!','td');
   }
 
@@ -342,7 +355,6 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
   }
 
   function tackle(){
-    if(player.invuln>0) return;
     shake = 14;
     down++;
     if(down>4){
@@ -358,7 +370,6 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
     pauseTimer = 1.15;
     yardsToGo = Math.min(95, yardsToGo + 10);
     defenders = [];
-    player.invuln = 1.6;
     showFlash('TACKLED! ' + ordinal(down) + ' down','tackle');
     updateHUD();
   }
@@ -366,15 +377,23 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
   function touchdownScored(){
     tds++;
     best = Math.max(best, tds);
-    state='touchdown';
-    pauseTimer = 1.6;
-    showFlash('TOUCHDOWN! 🏈','td');
     // confetti
     confetti = [];
     for(var i=0;i<70;i++){
       confetti.push({x:Math.random()*W, y:-20-Math.random()*120, vx:(Math.random()*80-40), vy:120+Math.random()*160, s:5+Math.random()*6, c:['#e8a90c','#ffffff','#ffd34d','#7ed492'][i%4], r:Math.random()*Math.PI});
     }
     defenders=[];
+    if(tds>=20){
+      // 20 touchdowns wins the game outright — no drive 21.
+      state='won';
+      winText.textContent = 'Final score: ' + tds + ' touchdowns in ' + drive + (drive===1?' drive':' drives') + '. Best: ' + best + ' TDs. You ran the table — every drive, all the way to twenty.';
+      winOverlay.hidden = false;
+      updateHUD();
+      return;
+    }
+    state='touchdown';
+    pauseTimer = 1.6;
+    showFlash('TOUCHDOWN! 🏈','td');
     updateHUD();
   }
 
@@ -382,7 +401,7 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
     drive++;
     down=1;
     yardsToGo=75; startYards=75;
-    player.x=W/2; player.vx=0; player.invuln=1.0;
+    player.x=W/2; player.vx=0;
     spawnTimer=0.6;
     state='playing';
     showFlash('Drive ' + drive + ' — faster!','td');
@@ -453,37 +472,30 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
   }
 
   function drawPlayer(){
-    var blink = player.invuln>0 && Math.floor(elapsed*12)%2===0 && state==='playing';
     ctx.save();
     ctx.translate(player.x, player.y);
     if(shake>0) ctx.translate((Math.random()*shake-shake/2),(Math.random()*shake-shake/2));
     ctx.rotate(player.lean*0.22);
-    if(!blink){
-      // shadow
-      ctx.fillStyle='rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(0,20,20,7,0,0,Math.PI*2); ctx.fill();
-      // legs hint (running step)
-      var step = Math.sin(player.step)*6;
-      ctx.fillStyle='#fff';
-      ctx.fillRect(-12, 10+step*0.3, 8, 12);
-      ctx.fillRect(5, 10-step*0.3, 8, 12);
-      // body jersey - navy
-      ctx.fillStyle='#123a7a';
-      ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.stroke();
-      // number
-      ctx.fillStyle='#fff'; ctx.font='800 20px "Barlow Condensed", sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText('28', 0, 1);
-      // helmet
-      ctx.fillStyle='#e8a90c'; ctx.beginPath(); ctx.arc(0,-16,11,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle='#122117'; ctx.lineWidth=1.5; ctx.stroke();
-      // ball
-      ctx.fillStyle='#7a3b12'; ctx.beginPath(); ctx.ellipse(16,8,9,6,0.6,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle='#fff'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(13,6); ctx.lineTo(19,10); ctx.stroke();
-    } else {
-      ctx.globalAlpha=0.45;
-      ctx.fillStyle='#123a7a'; ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2); ctx.fill();
-      ctx.globalAlpha=1;
-    }
+    // shadow
+    ctx.fillStyle='rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(0,20,20,7,0,0,Math.PI*2); ctx.fill();
+    // legs hint (running step)
+    var step = Math.sin(player.step)*6;
+    ctx.fillStyle='#fff';
+    ctx.fillRect(-12, 10+step*0.3, 8, 12);
+    ctx.fillRect(5, 10-step*0.3, 8, 12);
+    // body jersey - navy
+    ctx.fillStyle='#123a7a';
+    ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.stroke();
+    // number
+    ctx.fillStyle='#fff'; ctx.font='800 20px "Barlow Condensed", sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('28', 0, 1);
+    // helmet
+    ctx.fillStyle='#e8a90c'; ctx.beginPath(); ctx.arc(0,-16,11,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#122117'; ctx.lineWidth=1.5; ctx.stroke();
+    // ball
+    ctx.fillStyle='#7a3b12'; ctx.beginPath(); ctx.ellipse(16,8,9,6,0.6,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(13,6); ctx.lineTo(19,10); ctx.stroke();
     ctx.restore();
   }
 
@@ -538,8 +550,6 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
       player.x = Math.max(28, Math.min(W-28, player.x));
       if(player.x===28||player.x===W-28) player.vx=0;
       player.step += dt * (8 + inputSpeedFactor()*7);
-
-      if(player.invuln>0) player.invuln-=dt;
 
       // forward progress
       var speedMul = currentSpeedMul();
@@ -615,7 +625,7 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
         if(d.age>12 || d.y>H+60 || d.y<-340){ defenders.splice(i,1); continue; }
         var distX=d.x-player.x, distY=d.y-player.y;
         var dist=Math.sqrt(distX*distX+distY*distY);
-        if(dist < d.r + player.r - 6 && player.invuln<=0){
+        if(dist < d.r + player.r - 6){
           tackle(); break;
         }
       }
@@ -651,6 +661,7 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
     if(k===' '||k==='enter'){
       if(state==='ready') startGame();
       else if(state==='over') startGame();
+      else if(state==='won') startGame();
       e.preventDefault();
     }
     if(k==='p'){
@@ -673,6 +684,7 @@ canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--
   document.getElementById('restartBtn').addEventListener('click', startGame);
   document.getElementById('startBtn').addEventListener('click', startGame);
   document.getElementById('againBtn').addEventListener('click', startGame);
+  document.getElementById('winAgainBtn').addEventListener('click', startGame);
 
   // Touch buttons (hold)
   function bindHold(id, prop){
