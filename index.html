@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:,">
+<title>Touchdown Run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef3ea; --panel:#ffffff; --ink:#122117; --muted:#5a6b5e; --line:#d7e0d3;
+  --gold:#e8a90c; --gold2:#c78f00; --green:#177a3a; --green-dark:#0d4d26; --red:#c1271b;
+  --field:#1e8a44; --field2:#1a7a3b;
+  --btn:#122117; --btn-ink:#fff;
+  --shadow:0 10px 30px rgba(18,33,23,.14);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f1712; --panel:#18221b; --ink:#eef5ee; --muted:#a7b8ab; --line:#2a3a2f;
+    --btn:#eef5ee; --btn-ink:#122117;
+    --shadow:0 10px 30px rgba(0,0,0,.45);
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:"Barlow",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+button{font:inherit;cursor:pointer}
+.wrap{max-width:680px;margin:0 auto;padding:14px 14px 28px}
+.topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+h1{font-family:"Barlow Condensed",sans-serif;font-size:42px;line-height:.9;letter-spacing:.02em;margin:2px 0 4px;text-transform:uppercase}
+h1 span{color:var(--green)}
+.tagline{margin:0;color:var(--muted);font-size:15px;line-height:1.35;max-width:46ch}
+.speed-wrap{text-align:right;flex-shrink:0}
+.speed-label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.speed-val{font-family:"Barlow Condensed",sans-serif;font-size:28px;line-height:1;font-weight:800}
+.hud{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 10px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:9px 10px 8px;box-shadow:var(--shadow)}
+.stat b{display:block;font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.stat strong{font-family:"Barlow Condensed",sans-serif;font-size:30px;line-height:1;font-weight:800}
+.stat strong small{font-size:16px;color:var(--muted)}
+.down-dots{display:flex;gap:5px;margin-top:5px}
+.down-dots i{width:10px;height:10px;border-radius:50%;background:var(--line);display:block}
+.down-dots i.on{background:var(--gold);box-shadow:0 0 0 2px rgba(232,169,12,.25)}
+.progress{height:10px;background:var(--panel);border:1px solid var(--line);border-radius:999px;overflow:hidden;display:flex;align-items:center;padding:2px;margin-bottom:10px}
+.progress i{display:block;height:100%;border-radius:999px;background:var(--gold);width:0%;transition:width .2s}
+.progress-label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);font-weight:600;margin:-4px 2px 10px}
+.field-shell{background:#0b2e18;border-radius:20px;padding:8px;box-shadow:var(--shadow);position:relative}
+canvas{display:block;width:100%;height:auto;border-radius:14px;background:var(--field);touch-action:none}
+.overlay{position:absolute;inset:8px;border-radius:14px;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;background:rgba(7,26,14,.72);backdrop-filter:blur(2px);color:#fff}
+.overlay[hidden]{display:none}
+.card{max-width:420px;width:100%}
+.card .kicker{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#ffd34d;font-weight:800}
+.card h2{font-family:"Barlow Condensed",sans-serif;font-size:52px;line-height:.95;margin:8px 0 8px;text-transform:uppercase}
+.card p{margin:0 auto 16px;color:#dbe9dd;line-height:1.45;font-size:16px;max-width:36ch}
+.big-btn{background:var(--gold);color:#1a1400;border:0;border-radius:999px;padding:14px 26px;font-weight:800;font-size:17px;box-shadow:0 8px 20px rgba(0,0,0,.35);width:100%;max-width:320px}
+.big-btn:active{transform:scale(.98)}
+.secondary{background:#fff;color:#122117;border:0;border-radius:999px;padding:12px 18px;font-weight:700}
+.controls{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:12px}
+.ctl{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px 6px 9px;text-align:center;box-shadow:var(--shadow);user-select:none;-webkit-user-select:none;touch-action:none}
+.ctl:active,.ctl.active{background:var(--ink);color:var(--panel)}
+.ctl .arrow{font-size:24px;line-height:1;display:block;font-weight:800}
+.ctl .lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+.ctl:active .lbl,.ctl.active .lbl{color:inherit;opacity:.8}
+.actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.actions button{flex:1;border-radius:999px;padding:12px 14px;font-weight:700;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.actions button.primary{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+.help{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-top:12px;line-height:1.5;font-size:14.5px;color:var(--muted)}
+.help b{color:var(--ink)}
+.help ul{margin:6px 0 0;padding-left:18px}
+.help li{margin:3px 0}
+.flash{position:absolute;left:50%;top:18%;transform:translateX(-50%);background:#fff;color:#111;padding:10px 16px;border-radius:999px;font-family:"Barlow Condensed",sans-serif;font-weight:800;font-size:28px;letter-spacing:.02em;box-shadow:0 10px 24px rgba(0,0,0,.3);white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .18s, transform .18s}
+.flash.show{opacity:1;transform:translateX(-50%) scale(1.04)}
+.flash.td{background:var(--gold)}
+.flash.tackle{background:#fff;color:var(--red)}
+@media (max-width:520px){
+  h1{font-size:36px}
+  .hud{grid-template-columns:repeat(2,1fr)}
+  .controls{grid-template-columns:1fr 1fr}
+  .card h2{font-size:44px}
+  .topbar{flex-direction:column}
+  .speed-wrap{text-align:left;display:flex;gap:8px;align-items:baseline}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <h1>Touchdown <span>Run</span></h1>
+      <p class="tagline">You’re the running back. Dodge the defense, protect the ball, and take it all the way to the end zone.</p>
+    </div>
+    <div class="speed-wrap">
+      <div class="speed-label">Drive</div>
+      <div class="speed-val" id="driveVal">1</div>
+      <div class="speed-label" id="speedVal">Speed ×1.0</div>
+    </div>
+  </div>
+
+  <div class="hud" aria-live="polite">
+    <div class="stat"><b>Touchdowns</b><strong id="tdVal">0</strong></div>
+    <div class="stat"><b>Yards to go</b><strong id="yardsVal">75</strong></div>
+    <div class="stat"><b>Down</b><strong id="downVal">1<small>st</small></strong><div class="down-dots" id="downDots"><i class="on"></i><i></i><i></i><i></i></div></div>
+    <div class="stat"><b>Best</b><strong id="bestVal">0 <small>TDs</small></strong></div>
+  </div>
+
+  <div class="progress-label"><span>Own 25</span><span id="posLabel">Ball on the 25</span><span>End Zone</span></div>
+  <div class="progress"><i id="progBar"></i></div>
+
+  <div class="field-shell" id="shell">
+    <canvas id="game" width="600" height="720" aria-label="Football field game"></canvas>
+    <div class="flash" id="flash">TOUCHDOWN!</div>
+
+    <div class="overlay" id="startOverlay">
+      <div class="card">
+        <div class="kicker">Kickoff • 75 yards to glory</div>
+        <h2>Break a big one</h2>
+        <p>Steer left &amp; right to dodge defenders. Push up to sprint, pull back to slow down and let blocks develop. Get tackled 4 times and the drive — and the game — is over.</p>
+        <button class="big-btn" id="startBtn">🏈 &nbsp;Start running</button>
+        <p style="font-size:13px;margin-top:12px;opacity:.85">Keyboard: ← → ↑ ↓ or WASD &nbsp;•&nbsp; Phone: swipe or hold the buttons below</p>
+      </div>
+    </div>
+
+    <div class="overlay" id="overOverlay" hidden>
+      <div class="card">
+        <div class="kicker">Turnover on downs</div>
+        <h2 id="overTitle">Game over</h2>
+        <p id="overText">You scored 0 touchdowns.</p>
+        <button class="big-btn" id="againBtn">↻ &nbsp;Run it back</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls" aria-label="Touch controls">
+    <div class="ctl" id="btnLeft" role="button" aria-label="Move left"><span class="arrow">◀</span><span class="lbl">Juke left</span></div>
+    <div class="ctl" id="btnRight" role="button" aria-label="Move right"><span class="arrow">▶</span><span class="lbl">Juke right</span></div>
+    <div class="ctl" id="btnSlow" role="button" aria-label="Slow down"><span class="arrow">▼</span><span class="lbl">Slow down</span></div>
+    <div class="ctl" id="btnFast" role="button" aria-label="Speed up"><span class="arrow">▲</span><span class="lbl">Sprint</span></div>
+  </div>
+
+  <div class="actions">
+    <button class="primary" id="pauseBtn">⏸ Pause</button>
+    <button id="restartBtn">↻ Restart game</button>
+  </div>
+
+  <div class="help">
+    <b>How to play</b>
+    <ul>
+      <li><b>← / → or A / D</b> — dodge left and right. On phone, swipe left/right or hold <b>Juke</b>.</li>
+      <li><b>↑ / W</b> — sprint. You cover yards faster, but defenders close faster too.</li>
+      <li><b>↓ / S</b> — slow down. Useful in traffic to let a hole open up.</li>
+      <li><b>Tackled?</b> You lose a down and get pushed back 10 yards. Four tackles ends the game.</li>
+      <li><b>Touchdown?</b> +1 score, downs reset, and the next drive is faster with more defenders.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+(function(){
+  var canvas = document.getElementById('game');
+  var ctx = canvas.getContext('2d');
+  var W = 600, H = 720;
+
+  var tdEl = document.getElementById('tdVal');
+  var yardsEl = document.getElementById('yardsVal');
+  var downEl = document.getElementById('downVal');
+  var bestEl = document.getElementById('bestVal');
+  var driveEl = document.getElementById('driveVal');
+  var speedEl = document.getElementById('speedVal');
+  var progBar = document.getElementById('progBar');
+  var posLabel = document.getElementById('posLabel');
+  var dotsEl = document.getElementById('downDots');
+  var flashEl = document.getElementById('flash');
+  var startOverlay = document.getElementById('startOverlay');
+  var overOverlay = document.getElementById('overOverlay');
+  var overText = document.getElementById('overText');
+  var overTitle = document.getElementById('overTitle');
+
+  var state = 'ready'; // ready, playing, paused, tackled, touchdown, over
+  var keys = {left:false,right:false,up:false,down:false};
+  var touch = {left:false,right:false,up:false,down:false};
+
+  var tds = 0, best = 0, drive = 1, down = 1;
+  var yardsToGo = 75, startYards = 75;
+  var scrollY = 0; // pixels scrolled for yard lines
+  var elapsed = 0;
+  var spawnTimer = 0;
+  var pauseTimer = 0;
+  var shake = 0;
+  var confetti = [];
+
+  var player = { x: W/2, y: H-130, vx: 0, r: 22, invuln: 0, lean: 0, step: 0 };
+  var defenders = [];
+
+  // Field geometry: the field scrolls 22px per yard covered (same rate as
+  // scrollY below), so the goal line's on-screen position is derived from
+  // yardsToGo — it starts far above the screen and scrolls down to the
+  // player as the count drops. The end zone extends 10 yards beyond it.
+  var PX_PER_YARD = 22;
+  var END_ZONE_YARDS = 10;
+  // A touchdown registers once the ball is fully across the goal line:
+  // the line must pass the player's center by his radius (22px = 1 yard),
+  // with a small margin so he is visibly inside the dark green.
+  var TD_YARDS = -1.5;
+  function goalLineY(){ return player.y - yardsToGo * PX_PER_YARD; }
+
+  function ordinal(n){ return n===1?'1st':n===2?'2nd':n===3?'3rd':'4th'; }
+
+  function updateHUD(){
+    tdEl.textContent = tds;
+    yardsEl.textContent = Math.max(0, Math.ceil(yardsToGo));
+    downEl.innerHTML = down + '<small>' + ordinal(down).slice(1) + '</small>';
+    bestEl.innerHTML = best + ' <small>TDs</small>';
+    driveEl.textContent = drive;
+    var pct = Math.max(0, Math.min(100, (1 - yardsToGo/startYards)*100));
+    progBar.style.width = pct + '%';
+    var ballOn = Math.round(100 - yardsToGo);
+    if (yardsToGo<=0) posLabel.textContent = 'In the end zone!';
+    else if (ballOn <= 50) posLabel.textContent = 'Ball on the ' + ballOn;
+    else posLabel.textContent = 'Ball on the opp. ' + (100-ballOn);
+    var dots = dotsEl.children;
+    for(var i=0;i<dots.length;i++){ dots[i].className = i < down ? 'on' : ''; }
+    var mul = currentSpeedMul();
+    speedEl.textContent = 'Speed ×' + mul.toFixed(1);
+  }
+
+  function currentSpeedMul(){
+    var base = 1 + (drive-1)*0.18;
+    var input = 1;
+    if(keys.up || touch.up) input = 1.55;
+    else if(keys.down || touch.down) input = 0.55;
+    return base * input;
+  }
+  function inputSpeedFactor(){
+    if(keys.up || touch.up) return 1.55;
+    if(keys.down || touch.down) return 0.55;
+    return 1;
+  }
+
+  function showFlash(text, cls){
+    flashEl.textContent = text;
+    flashEl.className = 'flash show ' + (cls||'');
+    setTimeout(function(){ flashEl.className = 'flash ' + (cls||''); }, 1100);
+  }
+
+  function resetDrive(full){
+    if(full){ tds=0; drive=1; down=1; }
+    yardsToGo = 75; startYards = 75;
+    defenders = [];
+    player.x = W/2; player.vx = 0; player.invuln = 1.2;
+    spawnTimer = 0.7;
+    scrollY = 0;
+    updateHUD();
+  }
+
+  function startGame(){
+    resetDrive(true);
+    state = 'playing';
+    startOverlay.hidden = true;
+    overOverlay.hidden = true;
+    showFlash('GO!','td');
+  }
+
+  function spawnDefender(){
+    // pick a lane-ish x, avoid spawning directly on player every time
+    var x = 40 + Math.random()*(W-80);
+    if(Math.random() < 0.45){
+      // sometimes aim near player's lane to create pressure
+      x = player.x + (Math.random()*220-110);
+      x = Math.max(36, Math.min(W-36, x));
+    }
+    var speed = 150 + Math.random()*70 + (drive-1)*18;
+    defenders.push({
+      x:x, y:-40, r:20,
+      vy: speed,
+      vx: 0,
+      homing: 22 + Math.random()*28 + (drive-1)*4,
+      wobble: Math.random()*Math.PI*2,
+      num: Math.floor(Math.random()*89)+10
+    });
+  }
+
+  function tackle(){
+    if(player.invuln>0) return;
+    shake = 14;
+    down++;
+    if(down>4){
+      state='over';
+      best = Math.max(best, tds);
+      overTitle.textContent = tds===0 ? 'Stopped cold' : (tds===1 ? 'One score on the day' : tds + ' touchdowns!');
+      overText.textContent = 'You scored ' + tds + (tds===1?' touchdown':' touchdowns') + ' on ' + drive + (drive===1?' drive.':' drives.') + ' The defense finally held on 4th down.';
+      overOverlay.hidden = false;
+      updateHUD();
+      return;
+    }
+    state='tackled';
+    pauseTimer = 1.15;
+    yardsToGo = Math.min(95, yardsToGo + 10);
+    defenders = [];
+    player.invuln = 1.6;
+    showFlash('TACKLED! ' + ordinal(down) + ' down','tackle');
+    updateHUD();
+  }
+
+  function touchdownScored(){
+    tds++;
+    best = Math.max(best, tds);
+    state='touchdown';
+    pauseTimer = 1.6;
+    showFlash('TOUCHDOWN! 🏈','td');
+    // confetti
+    confetti = [];
+    for(var i=0;i<70;i++){
+      confetti.push({x:Math.random()*W, y:-20-Math.random()*120, vx:(Math.random()*80-40), vy:120+Math.random()*160, s:5+Math.random()*6, c:['#e8a90c','#ffffff','#ffd34d','#7ed492'][i%4], r:Math.random()*Math.PI});
+    }
+    defenders=[];
+    updateHUD();
+  }
+
+  function nextDrive(){
+    drive++;
+    down=1;
+    yardsToGo=75; startYards=75;
+    player.x=W/2; player.vx=0; player.invuln=1.0;
+    spawnTimer=0.6;
+    state='playing';
+    showFlash('Drive ' + drive + ' — faster!','td');
+    updateHUD();
+  }
+
+  // Drawing
+  function drawField(){
+    // stripes
+    var stripeH = 72; // 5 yards per stripe pair approx, visual only
+    ctx.fillStyle = '#1e8a44';
+    ctx.fillRect(0,0,W,H);
+    var offset = scrollY % (stripeH*2);
+    for(var y=-stripeH*2+offset, idx=0; y<H+stripeH; y+=stripeH, idx++){
+      if(idx%2===0){ ctx.fillStyle='rgba(255,255,255,0.05)'; ctx.fillRect(0,y,W,stripeH); }
+    }
+    // End zone (dark green): scrolls into view with the rest of the field.
+    // Its goal line sits yardsToGo ahead of the player and moves down at
+    // the field's scroll speed, reaching — then passing — the player as the
+    // count hits zero, so the player runs all the way into the zone.
+    var glY = goalLineY();
+    var ezDepth = END_ZONE_YARDS * PX_PER_YARD;
+    var ezTop = glY - ezDepth;
+    if(glY > 0 && ezTop < H){
+      var ezVisTop = Math.max(0, ezTop);
+      var grad = ctx.createLinearGradient(0, ezVisTop, 0, glY);
+      grad.addColorStop(0,'#0d4d26'); grad.addColorStop(1,'#145c30');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, ezVisTop, W, glY - ezVisTop);
+      if(glY - ezVisTop > 56){
+        ctx.fillStyle='rgba(255,255,255,0.92)';
+        ctx.font='800 34px "Barlow Condensed", sans-serif';
+        ctx.textAlign='center';
+        ctx.fillText('END ZONE', W/2, (ezVisTop + glY)/2 + 12);
+      }
+      // goal line
+      ctx.fillStyle='#fff'; ctx.fillRect(0, glY-3, W, 6);
+    }
+    // yard lines
+    ctx.strokeStyle='rgba(255,255,255,0.88)';
+    ctx.lineWidth=3;
+    var lineGap = 72;
+    var off = scrollY % lineGap;
+    ctx.beginPath();
+    for(var ly = -lineGap + off; ly < H+lineGap; ly += lineGap){
+      ctx.moveTo(0, ly); ctx.lineTo(W, ly);
+    }
+    ctx.stroke();
+    // hash marks
+    ctx.strokeStyle='rgba(255,255,255,0.65)'; ctx.lineWidth=2;
+    ctx.beginPath();
+    for(var hy = -36 + (scrollY % 36); hy < H+36; hy += 36){
+      ctx.moveTo(W/2-52, hy); ctx.lineTo(W/2-28, hy);
+      ctx.moveTo(W/2+28, hy); ctx.lineTo(W/2+52, hy);
+    }
+    ctx.stroke();
+    // sidelines
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,6,H); ctx.fillRect(W-6,0,6,H);
+    // yard numbers (decorative, based on yardsToGo)
+    ctx.fillStyle='rgba(255,255,255,0.55)';
+    ctx.font='700 22px "Barlow Condensed", sans-serif'; ctx.textAlign='center';
+    var nearestTen = Math.ceil(yardsToGo/10)*10;
+    // draw one number near top when aligned-ish
+    if(nearestTen>0 && nearestTen<100){
+      ctx.fillText(String(nearestTen), 42, 86);
+      ctx.fillText(String(nearestTen), W-42, 86);
+    }
+  }
+
+  function drawPlayer(){
+    var blink = player.invuln>0 && Math.floor(elapsed*12)%2===0 && state==='playing';
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    if(shake>0) ctx.translate((Math.random()*shake-shake/2),(Math.random()*shake-shake/2));
+    ctx.rotate(player.lean*0.22);
+    if(!blink){
+      // shadow
+      ctx.fillStyle='rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(0,20,20,7,0,0,Math.PI*2); ctx.fill();
+      // legs hint (running step)
+      var step = Math.sin(player.step)*6;
+      ctx.fillStyle='#fff';
+      ctx.fillRect(-12, 10+step*0.3, 8, 12);
+      ctx.fillRect(5, 10-step*0.3, 8, 12);
+      // body jersey - navy
+      ctx.fillStyle='#123a7a';
+      ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.stroke();
+      // number
+      ctx.fillStyle='#fff'; ctx.font='800 20px "Barlow Condensed", sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('28', 0, 1);
+      // helmet
+      ctx.fillStyle='#e8a90c'; ctx.beginPath(); ctx.arc(0,-16,11,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#122117'; ctx.lineWidth=1.5; ctx.stroke();
+      // ball
+      ctx.fillStyle='#7a3b12'; ctx.beginPath(); ctx.ellipse(16,8,9,6,0.6,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#fff'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(13,6); ctx.lineTo(19,10); ctx.stroke();
+    } else {
+      ctx.globalAlpha=0.45;
+      ctx.fillStyle='#123a7a'; ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=1;
+    }
+    ctx.restore();
+  }
+
+  function drawDefender(d){
+    ctx.save(); ctx.translate(d.x, d.y);
+    ctx.fillStyle='rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(0,19,19,6,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#c1271b'; ctx.beginPath(); ctx.arc(0,0,20,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.font='800 17px "Barlow Condensed", sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(String(d.num),0,1);
+    ctx.fillStyle='#222'; ctx.beginPath(); ctx.arc(0,-15,10,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#ddd'; ctx.fillRect(-10,-18,20,4);
+    ctx.restore();
+  }
+
+  function drawConfetti(dt){
+    for(var i=0;i<confetti.length;i++){
+      var c=confetti[i];
+      c.y+=c.vy*dt; c.x+=c.vx*dt; c.r+=dt*4;
+      ctx.save(); ctx.translate(c.x,c.y); ctx.rotate(c.r); ctx.fillStyle=c.c; ctx.fillRect(-c.s/2,-c.s/2,c.s,c.s*0.6); ctx.restore();
+    }
+    confetti = confetti.filter(function(c){ return c.y < H+30; });
+  }
+
+  var last=0;
+  function loop(ts){
+    requestAnimationFrame(loop);
+    if(!last) last=ts;
+    var dt = Math.min(0.033, (ts-last)/1000); last=ts;
+    if(state==='paused'){ render(dt); return; }
+    elapsed += dt;
+    if(shake>0) shake = Math.max(0, shake - dt*36);
+
+    if(state==='tackled'){
+      pauseTimer-=dt;
+      if(pauseTimer<=0){ state='playing'; updateHUD(); }
+    } else if(state==='touchdown'){
+      pauseTimer-=dt;
+      if(pauseTimer<=0){ nextDrive(); }
+    } else if(state==='playing'){
+      // input -> lateral
+      var ax=0;
+      if(keys.left||touch.left) ax-=1;
+      if(keys.right||touch.right) ax+=1;
+      player.vx += ax * 2200 * dt;
+      player.vx *= Math.pow(0.0001, dt); // damping-ish
+      // simpler damping:
+      player.vx *= 0.86;
+      if(ax===0) player.vx *= 0.88;
+      player.x += player.vx * dt * 3.2;
+      player.lean += ((ax) - player.lean)*0.18;
+      player.x = Math.max(28, Math.min(W-28, player.x));
+      if(player.x===28||player.x===W-28) player.vx=0;
+      player.step += dt * (8 + inputSpeedFactor()*7);
+
+      if(player.invuln>0) player.invuln-=dt;
+
+      // forward progress
+      var speedMul = currentSpeedMul();
+      var yardsPerSec = 8.2 * speedMul;
+      yardsToGo -= yardsPerSec * dt;
+      scrollY += yardsPerSec * dt * 22; // visual scroll px
+
+      // Touchdown once the player has carried the ball fully across the
+      // goal line and into the end zone drawn above (see goalLineY).
+      if(yardsToGo<=TD_YARDS){ updateHUD(); touchdownScored(); }
+
+      // spawns
+      spawnTimer-=dt;
+      var interval = Math.max(0.42, 1.05 - (drive-1)*0.11 - (inputSpeedFactor()>1?0.12:0));
+      if(spawnTimer<=0){ spawnDefender(); if(Math.random()<0.22+drive*0.04) spawnDefender(); spawnTimer = interval * (0.7+Math.random()*0.6); }
+
+      // defenders move: they come down field + scroll with field + home slightly
+      var scrollPx = yardsPerSec * dt * 22;
+      for(var i=defenders.length-1;i>=0;i--){
+        var d=defenders[i];
+        d.wobble += dt*3;
+        var dx = player.x - d.x;
+        d.vx += Math.max(-1, Math.min(1, dx/80)) * d.homing * dt;
+        d.vx *= 0.96;
+        d.x += d.vx + Math.sin(d.wobble)*18*dt;
+        d.y += (d.vy * (0.55 + inputSpeedFactor()*0.45) + scrollPx*1.15) * dt;
+        d.x = Math.max(24, Math.min(W-24, d.x));
+        if(d.y > H+50){ defenders.splice(i,1); continue; }
+        // collision
+        var distX = d.x-player.x, distY=d.y-player.y;
+        var dist = Math.sqrt(distX*distX+distY*distY);
+        if(dist < d.r + player.r - 6 && player.invuln<=0){
+          tackle(); break;
+        }
+      }
+      updateHUD();
+    }
+    render(dt);
+  }
+
+  function render(dt){
+    ctx.clearRect(0,0,W,H);
+    drawField();
+    // defenders under player
+    for(var i=0;i<defenders.length;i++) drawDefender(defenders[i]);
+    drawPlayer();
+    if(confetti.length) drawConfetti(state==='touchdown'?dt:0.016);
+    if(state==='paused'){
+      ctx.fillStyle='rgba(0,0,0,0.45)'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#fff'; ctx.font='800 44px "Barlow Condensed", sans-serif'; ctx.textAlign='center';
+      ctx.fillText('PAUSED', W/2, H/2);
+    }
+  }
+
+  requestAnimationFrame(loop);
+  updateHUD();
+
+  // Keyboard
+  window.addEventListener('keydown', function(e){
+    var k=e.key.toLowerCase();
+    if(k==='arrowleft'||k==='a'){ keys.left=true; e.preventDefault(); }
+    if(k==='arrowright'||k==='d'){ keys.right=true; e.preventDefault(); }
+    if(k==='arrowup'||k==='w'){ keys.up=true; e.preventDefault(); }
+    if(k==='arrowdown'||k==='s'){ keys.down=true; e.preventDefault(); }
+    if(k===' '||k==='enter'){
+      if(state==='ready') startGame();
+      else if(state==='over') startGame();
+      e.preventDefault();
+    }
+    if(k==='p'){
+      togglePause();
+    }
+  });
+  window.addEventListener('keyup', function(e){
+    var k=e.key.toLowerCase();
+    if(k==='arrowleft'||k==='a') keys.left=false;
+    if(k==='arrowright'||k==='d') keys.right=false;
+    if(k==='arrowup'||k==='w') keys.up=false;
+    if(k==='arrowdown'||k==='s') keys.down=false;
+  });
+
+  function togglePause(){
+    if(state==='playing'){ state='paused'; document.getElementById('pauseBtn').textContent='▶ Resume'; }
+    else if(state==='paused'){ state='playing'; document.getElementById('pauseBtn').textContent='⏸ Pause'; }
+  }
+  document.getElementById('pauseBtn').addEventListener('click', togglePause);
+  document.getElementById('restartBtn').addEventListener('click', startGame);
+  document.getElementById('startBtn').addEventListener('click', startGame);
+  document.getElementById('againBtn').addEventListener('click', startGame);
+
+  // Touch buttons (hold)
+  function bindHold(id, prop){
+    var el=document.getElementById(id);
+    function on(e){ e.preventDefault(); touch[prop]=true; el.classList.add('active'); if(state==='ready') startGame(); }
+    function off(e){ if(e) e.preventDefault(); touch[prop]=false; el.classList.remove('active'); }
+    el.addEventListener('pointerdown', on);
+    el.addEventListener('pointerup', off);
+    el.addEventListener('pointerleave', off);
+    el.addEventListener('pointercancel', off);
+    el.addEventListener('touchstart', on, {passive:false});
+    el.addEventListener('touchend', off);
+  }
+  bindHold('btnLeft','left'); bindHold('btnRight','right'); bindHold('btnSlow','down'); bindHold('btnFast','up');
+
+  // Swipe on canvas
+  var swipeStart=null;
+  canvas.addEventListener('touchstart', function(e){
+    if(e.touches.length===1) swipeStart={x:e.touches[0].clientX, y:e.touches[0].clientY, t:Date.now()};
+    if(state==='ready'){ /* don't auto-start on mere touch, overlay button handles it */ }
+  }, {passive:true});
+  canvas.addEventListener('touchmove', function(e){
+    if(!swipeStart||!e.touches.length) return;
+    var dx=e.touches[0].clientX - swipeStart.x;
+    var dy=e.touches[0].clientY - swipeStart.y;
+    touch.left = dx < -18; touch.right = dx > 18;
+    touch.up = dy < -28; touch.down = dy > 28;
+    e.preventDefault();
+  }, {passive:false});
+  canvas.addEventListener('touchend', function(e){
+    if(swipeStart){
+      var changed=e.changedTouches[0];
+      var dx=changed.clientX - swipeStart.x;
+      // quick flick = juke dash
+      if(Math.abs(dx)>55 && state==='playing'){
+        player.vx += (dx>0? 260 : -260);
+        player.x += (dx>0? 26 : -26);
+      }
+    }
+    swipeStart=null; touch.left=touch.right=touch.up=touch.down=false;
+    // preserve button holds: they set touch separately and clear on their own pointerup; this only clears swipe layer if no buttons held is acceptable for simplicity
+  });
+
+  // Mouse drag on canvas also steers (nice on desktop)
+  var mouseDown=false;
+  canvas.addEventListener('pointerdown', function(e){ mouseDown=true; });
+  window.addEventListener('pointerup', function(){ mouseDown=false; touch.left=touch.right=false; });
+  canvas.addEventListener('pointermove', function(e){
+    if(!mouseDown||state!=='playing') return;
+    var rect=canvas.getBoundingClientRect();
+    var x=(e.clientX-rect.left)/rect.width*W;
+    player.x += (x-player.x)*0.35;
+  });
+})();
+</script>
+</body>
+</html>
