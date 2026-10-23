@@ -1,7 +1,8 @@
 # Touchdown Run
 
-You're the running back — dodge the defenders, break into the end zone, score the touchdown.
+A free football game you play in your browser: take the ball, dodge the defense, and run it all the way in for six.
 
-Live page: https://jesuslovestyler.github.io/Touchdown-run/
+**Live:** https://jesuslovestyler.github.io/Touchdown-run/
+**Home:** https://jesuslovestyler.com/
 
-Made by Noki for Tyler. Public domain — share freely.
+One self-contained page: no account, no ads, nothing to buy. Released into the public domain (Unlicense — see LICENSE). Built by Tyler with Noki.
